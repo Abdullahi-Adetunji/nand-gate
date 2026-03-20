@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NAND Gate Circuit Simulator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0b0f1a;
+    overflow: hidden;
+    font-family: 'Share Tech Mono', monospace;
+    color: #a0ffb0;
+  }
+
+  #canvas { display: block; position: fixed; top: 0; left: 0; }
+
+  /* ── PANEL ── */
+  #panel {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 260px;
+    background: rgba(5, 15, 10, 0.88);
+    border: 1px solid #1aff6633;
+    border-radius: 12px;
+    padding: 20px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 0 40px rgba(0,255,80,0.08), inset 0 0 20px rgba(0,0,0,0.4);
+    z-index: 10;
+  }
+
+  #panel h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1aff88;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  #panel .subtitle {
+    font-size: 10px;
+    color: #446655;
+    margin-bottom: 18px;
+    letter-spacing: 1px;
+  }
+
+  /* ── INPUTS ── */
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .input-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .input-label {
+    font-size: 12px;
+    color: #88ccaa;
+    letter-spacing: 1px;
+  }
+
+  .toggle-btn {
+    position: relative;
+    width: 60px;
+    height: 28px;
+    border-radius: 14px;
+    border: 1.5px solid #1a3a28;
+    background: #0a1f14;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+  }
+
+  .toggle-btn::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #2a4a38;
+    transition: all 0.25s cubic-bezier(.34,1.56,.64,1);
+    box-shadow: 0 0 4px rgba(0,0,0,0.5);
+  }
+
+  .toggle-btn.on {
+    background: #051f12;
+    border-color: #1aff88;
+    box-shadow: 0 0 12px rgba(26,255,136,0.3);
+  }
+
+  .toggle-btn.on::after {
+    left: 33px;
+    background: #1aff88;
+    box-shadow: 0 0 10px rgba(26,255,136,0.8);
+  }
+
+  .badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: #0a1f14;
+    border: 1px solid #1a3a28;
+    color: #446655;
+    width: 32px;
+    text-align: center;
+    transition: all 0.2s;
+  }
+
+  .badge.high {
+    color: #1aff88;
+    border-color: #1aff8866;
+    background: #051f12;
+    box-shadow: 0 0 8px rgba(26,255,136,0.2);
+  }
+
+  /* ── OUTPUT ── */
+  .output-section {
+    border-top: 1px solid #1a3a2833;
+    padding-top: 14px;
+    margin-bottom: 16px;
+  }
+
+  .output-label {
+    font-size: 10px;
+    color: #446655;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+  }
+
+  .led-display {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .led-visual {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #2a1010;
+    border: 2px solid #3a2020;
+    transition: all 0.3s ease;
+    position: relative;
+  }
+
+  .led-visual.on {
+    background: radial-gradient(circle at 35% 35%, #ff8844, #ff3300);
+    border-color: #ff6622;
+    box-shadow: 0 0 20px rgba(255,80,0,0.9), 0 0 40px rgba(255,80,0,0.4);
+  }
+
+  .led-visual::after {
+    content: '';
+    position: absolute;
+    top: 5px;
+    left: 7px;
+    width: 10px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .led-visual.on::after { opacity: 1; }
+
+  .led-status {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .led-state {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: #2a4a38;
+    transition: color 0.3s;
+  }
+
+  .led-state.on { color: #ff6622; text-shadow: 0 0 10px rgba(255,100,30,0.8); }
+
+  .led-logic {
+    font-size: 10px;
+    color: #446655;
+  }
+
+  /* ── TRUTH TABLE ── */
+  .truth-table {
+    border-top: 1px solid #1a3a2833;
+    padding-top: 14px;
+    margin-bottom: 16px;
+  }
+
+  .truth-table h3 {
+    font-size: 10px;
+    color: #446655;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+
+  th {
+    color: #1aff88;
+    font-weight: normal;
+    padding: 4px 0;
+    text-align: center;
+    border-bottom: 1px solid #1a3a2833;
+    letter-spacing: 1px;
+  }
+
+  td {
+    padding: 5px 0;
+    text-align: center;
+    color: #446655;
+    border-bottom: 1px solid #0d2018;
+    transition: all 0.2s;
+  }
+
+  tr.active td { color: #a0ffb0; background: rgba(26,255,136,0.04); }
+  tr.active td:last-child.output-on { color: #ff6622; }
+
+  /* ── INFO ── */
+  .info {
+    font-size: 10px;
+    color: #2a4a38;
+    line-height: 1.6;
+    border-top: 1px solid #1a3a2833;
+    padding-top: 12px;
+  }
+
+  .info span { color: #446655; }
+
+  /* ── TITLE OVERLAY ── */
+  #title-overlay {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 10;
+  }
+
+  #title-overlay h2 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px;
+    color: #1aff8833;
+    letter-spacing: 4px;
+  }
+
+  /* ── HINT ── */
+  #hint {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: #1a3a28;
+    letter-spacing: 2px;
+    z-index: 10;
+  }
+
+  /* ── SCANLINES ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 100;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div id="title-overlay">
+  <h2>CIRCUIT · SIMULATOR</h2>
+</div>
+
+<div id="panel">
+  <h1>NAND Gate</h1>
+  <div class="subtitle">// DIGITAL LOGIC CIRCUIT</div>
+
+  <div class="input-group">
+    <div class="input-row">
+      <span class="input-label">INPUT A</span>
+      <span class="badge" id="badge-a">LOW</span>
+      <button class="toggle-btn" id="btn-a" onclick="toggleA()"></button>
+    </div>
+    <div class="input-row">
+      <span class="input-label">INPUT B</span>
+      <span class="badge" id="badge-b">LOW</span>
+      <button class="toggle-btn" id="btn-b" onclick="toggleB()"></button>
+    </div>
+  </div>
+
+  <div class="output-section">
+    <div class="output-label">// OUTPUT</div>
+    <div class="led-display">
+      <div class="led-visual on" id="led-visual"></div>
+      <div class="led-status">
+        <div class="led-state on" id="led-state">ON</div>
+        <div class="led-logic" id="led-logic">HIGH · 5V</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="truth-table">
+    <h3>// TRUTH TABLE</h3>
+    <table>
+      <thead>
+        <tr><th>A</th><th>B</th><th>OUT</th></tr>
+      </thead>
+      <tbody id="truth-body">
+        <tr class="active"><td>0</td><td>0</td><td class="output-on">1</td></tr>
+        <tr><td>0</td><td>1</td><td>1</td></tr>
+        <tr><td>1</td><td>0</td><td>1</td></tr>
+        <tr><td>1</td><td>1</td><td>0</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="info">
+    <span>NAND = NOT AND</span><br>
+    LED turns OFF only when<br>
+    both inputs are HIGH (1).<br>
+    Built with 2 transistors.
+  </div>
+</div>
+
+<div id="hint">DRAG TO ROTATE · SCROLL TO ZOOM</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ── STATE ──
+let inputA = false, inputB = false;
+function nand(a, b) { return !(a && b); }
+
+// ── THREE.JS SETUP ──
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setClearColor(0x0b0f1a);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x0b0f1a, 0.045);
+
+const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.01, 100);
+camera.position.set(7, 5.5, 7);
+camera.lookAt(0, 0.5, 0);
+
+// ── LIGHTS ──
+const ambientLight = new THREE.AmbientLight(0x223322, 0.8);
+scene.add(ambientLight);
+
+const sunLight = new THREE.DirectionalLight(0xfff4e0, 1.2);
+sunLight.position.set(6, 10, 4);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(2048, 2048);
+sunLight.shadow.camera.near = 0.5;
+sunLight.shadow.camera.far = 30;
+sunLight.shadow.camera.left = -8;
+sunLight.shadow.camera.right = 8;
+sunLight.shadow.camera.top = 6;
+sunLight.shadow.camera.bottom = -6;
+scene.add(sunLight);
+
+const fillLight = new THREE.DirectionalLight(0x2244ff, 0.3);
+fillLight.position.set(-5, 3, -5);
+scene.add(fillLight);
+
+// LED point light
+const ledLight = new THREE.PointLight(0xff4400, 3, 3);
+ledLight.position.set(-2.2, 1.2, -0.3);
+scene.add(ledLight);
+
+// ── MATERIALS ──
+const bbMat     = new THREE.MeshPhongMaterial({ color: 0xf2f2ee, specular: 0x222222, shininess: 20 });
+const bbDivMat  = new THREE.MeshPhongMaterial({ color: 0x999988 });
+const holeMat   = new THREE.MeshPhongMaterial({ color: 0x666666 });
+const stripMat  = new THREE.MeshPhongMaterial({ color: 0xddddbb });
+const blackComp = new THREE.MeshPhongMaterial({ color: 0x111111, specular: 0x333333, shininess: 60 });
+const legMat    = new THREE.MeshPhongMaterial({ color: 0xc8c8c8, specular: 0x888888, shininess: 80 });
+const redWire   = new THREE.MeshPhongMaterial({ color: 0xff2200 });
+const blackWire = new THREE.MeshPhongMaterial({ color: 0x111111, specular: 0x222222 });
+const yelWire   = new THREE.MeshPhongMaterial({ color: 0xffcc00 });
+const orgWire   = new THREE.MeshPhongMaterial({ color: 0xff7700 });
+const battMat   = new THREE.MeshPhongMaterial({ color: 0x1a1a1a, specular: 0x444444, shininess: 80 });
+const battRedMat= new THREE.MeshPhongMaterial({ color: 0xff2200, specular: 0x444444 });
+const battBlkMat= new THREE.MeshPhongMaterial({ color: 0x111111 });
+const resistBand= (c) => new THREE.MeshPhongMaterial({ color: c, specular: 0x222222, shininess: 40 });
+const resistBody= new THREE.MeshPhongMaterial({ color: 0xd4a04a, specular: 0x111111, shininess: 20 });
+let ledMat      = new THREE.MeshPhongMaterial({ color: 0xcc2200, emissive: 0xff3300, emissiveIntensity: 1.5, transparent: true, opacity: 0.9, specular: 0xffffff, shininess: 100 });
+let ledOffMat   = new THREE.MeshPhongMaterial({ color: 0x551100, specular: 0x333333, shininess: 60, transparent: true, opacity: 0.7 });
+let ledMesh;
+
+// ── HELPERS ──
+function box(w, h, d, mat) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.castShadow = true; m.receiveShadow = true; return m;
+}
+
+function cyl(rt, rb, h, segs, mat) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, segs), mat);
+  m.castShadow = true; return m;
+}
+
+function wire(points, mat, r = 0.035) {
+  const curve = new THREE.CatmullRomCurve3(points);
+  const geo = new THREE.TubeGeometry(curve, points.length * 8, r, 6, false);
+  const m = new THREE.Mesh(geo, mat);
+  m.castShadow = true;
+  return m;
+}
+
+function v(x, y, z) { return new THREE.Vector3(x, y, z); }
+
+// ── BREADBOARD ──
+function buildBreadboard() {
+  const g = new THREE.Group();
+
+  // Base slab
+  const base = box(9.4, 0.28, 3.8, bbMat);
+  base.position.y = -0.14;
+  base.receiveShadow = true;
+  g.add(base);
+
+  // Center divide
+  const div = box(9.4, 0.30, 0.08, bbDivMat);
+  div.position.y = 0;
+  g.add(div);
+
+  // Power rail strips (red + blue)
+  const railR1 = box(9.2, 0.01, 0.22, new THREE.MeshPhongMaterial({ color: 0xff3300, opacity: 0.6, transparent: true }));
+  railR1.position.set(0, 0, -1.68);
+  g.add(railR1);
+  const railB1 = box(9.2, 0.01, 0.22, new THREE.MeshPhongMaterial({ color: 0x2244ff, opacity: 0.6, transparent: true }));
+  railB1.position.set(0, 0, -1.44);
+  g.add(railB1);
+  const railR2 = box(9.2, 0.01, 0.22, new THREE.MeshPhongMaterial({ color: 0xff3300, opacity: 0.6, transparent: true }));
+  railR2.position.set(0, 0, 1.44);
+  g.add(railR2);
+  const railB2 = box(9.2, 0.01, 0.22, new THREE.MeshPhongMaterial({ color: 0x2244ff, opacity: 0.6, transparent: true }));
+  railB2.position.set(0, 0, 1.68);
+  g.add(railB2);
+
+  // Holes (simplified - 3 rows of representative holes)
+  const hGeo = new THREE.CylinderGeometry(0.045, 0.045, 0.31, 6);
+  const cols = 19, step = 0.46;
+  const rowZ = [-1.2, -0.84, -0.48, -0.12, 0.12, 0.48, 0.84, 1.2];
+  for (let c = 0; c < cols; c++) {
+    for (let r = 0; r < rowZ.length; r++) {
+      const h = new THREE.Mesh(hGeo, holeMat);
+      h.position.set(-4.14 + c * step, 0, rowZ[r]);
+      g.add(h);
+    }
+  }
+  // Rail holes
+  const railRowZ = [-1.68, -1.44, 1.44, 1.68];
+  for (let c = 0; c < cols; c++) {
+    for (let rr of railRowZ) {
+      const h = new THREE.Mesh(hGeo, holeMat);
+      h.position.set(-4.14 + c * step, 0, rr);
+      g.add(h);
+    }
+  }
+
+  // Rubber feet
+  for (let sx of [-4, 4]) for (let sz of [-1.5, 1.5]) {
+    const foot = cyl(0.15, 0.18, 0.06, 8, new THREE.MeshPhongMaterial({ color: 0x333333 }));
+    foot.position.set(sx, -0.29, sz);
+    g.add(foot);
+  }
+
+  return g;
+}
+
+const breadboard = buildBreadboard();
+scene.add(breadboard);
+
+// ── TRANSISTOR (NPN BJT TO-92) ──
+function buildTransistor(x, z) {
+  const g = new THREE.Group();
+
+  // Body - D-shape approximation (half-cylinder)
+  const bodyGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.55, 16, 1, false, 0, Math.PI);
+  const body = new THREE.Mesh(bodyGeo, blackComp);
+  body.castShadow = true;
+  g.add(body);
+
+  // Flat face cap
+  const capGeo = new THREE.PlaneGeometry(0.4, 0.55);
+  const cap = new THREE.Mesh(capGeo, blackComp);
+  cap.rotation.y = Math.PI / 2;
+  g.add(cap);
+
+  // Legs (3 metal pins)
+  for (let i = -1; i <= 1; i++) {
+    const leg = cyl(0.018, 0.018, 0.5, 6, legMat);
+    leg.position.set(i * 0.12, -0.5, 0);
+    g.add(leg);
+  }
+
+  g.position.set(x, 0.52, z);
+  return g;
+}
+
+const t1 = buildTransistor(-1.38, 0.36);
+const t2 = buildTransistor(-0.46, 0.36);
+scene.add(t1);
+scene.add(t2);
+
+// ── RESISTOR ──
+function buildResistor(x, z, rot = 0) {
+  const g = new THREE.Group();
+
+  // Body
+  const body = cyl(0.065, 0.065, 0.55, 12, resistBody);
+  body.rotation.z = Math.PI / 2;
+  g.add(body);
+
+  // Color bands
+  const bands = [0x8800ff, 0x222222, 0xff6600];
+  bands.forEach((c, i) => {
+    const b = cyl(0.07, 0.07, 0.04, 12, resistBand(c));
+    b.rotation.z = Math.PI / 2;
+    b.position.x = -0.15 + i * 0.13;
+    g.add(b);
+  });
+
+  // Wire leads
+  for (let side of [-1, 1]) {
+    const lead = cyl(0.018, 0.018, 0.35, 6, legMat);
+    lead.rotation.z = Math.PI / 2;
+    lead.position.x = side * 0.45;
+    g.add(lead);
+  }
+
+  g.rotation.y = rot;
+  g.position.set(x, 0.22, z);
+  return g;
+}
+
+const r1 = buildResistor(-1.84, -0.36);
+const r2 = buildResistor(-0.92, -0.36);
+const r3 = buildResistor(-1.38, -1.1, Math.PI / 2);
+scene.add(r1); scene.add(r2); scene.add(r3);
+
+// ── LED ──
+function buildLED(x, z) {
+  const g = new THREE.Group();
+
+  // Dome
+  const domeGeo = new THREE.SphereGeometry(0.14, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+  ledMesh = new THREE.Mesh(domeGeo, ledMat);
+  ledMesh.position.y = 0.1;
+  g.add(ledMesh);
+
+  // Base cylinder
+  const base = cyl(0.14, 0.14, 0.1, 16, blackComp);
+  base.position.y = 0.05;
+  g.add(base);
+
+  // Legs
+  for (let side of [-1, 1]) {
+    const leg = cyl(0.018, 0.018, 0.42, 6, legMat);
+    leg.position.set(side * 0.07, -0.17, 0);
+    g.add(leg);
+  }
+
+  g.position.set(x, 0.18, z);
+  return g;
+}
+
+const led = buildLED(-2.3, -0.36);
+scene.add(led);
+
+// ── PUSH BUTTON SWITCHES ──
+function buildSwitch(x, z) {
+  const g = new THREE.Group();
+  const body = box(0.32, 0.18, 0.32, blackComp);
+  g.add(body);
+  // Button cap
+  const cap = cyl(0.1, 0.1, 0.06, 16, new THREE.MeshPhongMaterial({ color: 0x222222, specular: 0x888888, shininess: 80 }));
+  cap.position.y = 0.12;
+  g.add(cap);
+  // 4 legs
+  const legPos = [[-0.1,-0.1],[-0.1,0.1],[0.1,-0.1],[0.1,0.1]];
+  for (let [lx, lz] of legPos) {
+    const leg = cyl(0.015, 0.015, 0.28, 6, legMat);
+    leg.position.set(lx, -0.22, lz);
+    g.add(leg);
+  }
+  g.position.set(x, 0.22, z);
+  return g;
+}
+
+const sw1 = buildSwitch(-2.76, 0.36);
+const sw2 = buildSwitch(-1.84, 0.36);
+scene.add(sw1); scene.add(sw2);
+
+// ── BATTERY PACK ──
+function buildBattery(x, z) {
+  const g = new THREE.Group();
+
+  const body = box(2.0, 0.7, 1.0, battMat);
+  g.add(body);
+
+  // Connector bumps
+  const connR = box(0.18, 0.22, 0.22, battRedMat);
+  connR.position.set(-0.78, 0.44, 0);
+  g.add(connR);
+  const connB = box(0.18, 0.22, 0.22, battBlkMat);
+  connB.position.set(-1.0, 0.44, 0);
+  g.add(connB);
+
+  // Label surface
+  const label = box(1.7, 0.01, 0.7, new THREE.MeshPhongMaterial({ color: 0x222222 }));
+  label.position.y = 0.36;
+  g.add(label);
+
+  // Terminal wires going up
+  const tw1 = cyl(0.025, 0.025, 0.4, 6, redWire);
+  tw1.position.set(-0.78, 0.78, 0);
+  g.add(tw1);
+  const tw2 = cyl(0.025, 0.025, 0.4, 6, blackWire);
+  tw2.position.set(-1.0, 0.78, 0);
+  g.add(tw2);
+
+  g.position.set(x, 0.36, z);
+  return g;
+}
+
+const battery = buildBattery(3.0, 0);
+scene.add(battery);
+
+// ── WIRES ──
+// Red power wire: battery+ → top rail
+scene.add(wire([
+  v(2.22, 1.15, 0), v(2.22, 1.1, -1.3), v(0, 1.1, -1.68), v(-4, 0.2, -1.68)
+], redWire, 0.04));
+
+// Black ground wire: battery- → bottom rail
+scene.add(wire([
+  v(2.0, 1.15, 0), v(2.0, 0.9, 1.3), v(0, 0.9, 1.68), v(-4, 0.2, 1.68)
+], blackWire, 0.04));
+
+// Red: top rail → LED anode (through r3)
+scene.add(wire([v(-1.38, 0.2, -1.5), v(-1.38, 0.2, -1.2), v(-1.38, 0.55, -0.9)], redWire));
+
+// Red: LED anode connection
+scene.add(wire([v(-2.37, 0.5, -0.36), v(-2.37, 0.5, -0.8), v(-1.84, 0.5, -0.8), v(-1.84, 0.38, -0.36)], redWire));
+
+// Orange: LED → transistor chain → GND
+scene.add(wire([v(-2.23, 0.5, -0.36), v(-2.23, 0.5, 0.1), v(-1.52, 0.5, 0.1), v(-1.52, 0.8, 0.36)], orgWire));
+
+// Orange: T1 → T2
+scene.add(wire([v(-1.26, 0.5, 0.36), v(-0.7, 0.5, 0.36), v(-0.6, 0.8, 0.36)], orgWire));
+
+// Black: T2 → GND rail
+scene.add(wire([v(-0.34, 0.5, 0.36), v(-0.34, 0.5, 1.0), v(-0.34, 0.2, 1.5), v(-0.34, 0.2, 1.68)], blackWire));
+
+// Yellow: Switch A input
+scene.add(wire([v(-2.76, 0.42, 0.36), v(-2.76, 0.9, 0.1), v(-1.98, 0.9, -0.4), v(-1.98, 0.5, -0.36)], yelWire));
+scene.add(wire([v(-2.76, 0.42, 0.2), v(-2.76, 0.2, -0.5), v(-2.76, 0.2, -1.5), v(-2.76, 0.2, -1.68)], blackWire, 0.025));
+
+// Yellow: Switch B input
+scene.add(wire([v(-1.84, 0.42, 0.36), v(-1.84, 0.9, 0.1), v(-1.06, 0.9, -0.4), v(-1.06, 0.5, -0.36)], yelWire));
+scene.add(wire([v(-1.84, 0.42, 0.2), v(-1.84, 0.2, -0.5), v(-1.84, 0.2, -1.5)], blackWire, 0.025));
+
+// Resistor lead wires (short connections)
+scene.add(wire([v(-1.84, 0.5, -0.1), v(-1.52, 0.5, 0.1)], orgWire, 0.025));
+scene.add(wire([v(-0.92, 0.5, -0.1), v(-0.6, 0.5, 0.1)], orgWire, 0.025));
+
+// ── FLOOR ──
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(50, 50),
+  new THREE.MeshPhongMaterial({ color: 0x080c14, specular: 0x111122, shininess: 10 })
+);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = -0.42;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// ── ORBIT CONTROLS (manual) ──
+let isDragging = false, prevMouse = { x: 0, y: 0 };
+let spherical = { theta: Math.PI / 4, phi: Math.PI / 3.5, r: 12 };
+
+function updateCamera() {
+  camera.position.x = spherical.r * Math.sin(spherical.phi) * Math.sin(spherical.theta);
+  camera.position.y = spherical.r * Math.cos(spherical.phi);
+  camera.position.z = spherical.r * Math.sin(spherical.phi) * Math.cos(spherical.theta);
+  camera.lookAt(0, 0.5, 0);
+}
+
+canvas.addEventListener('mousedown', e => { isDragging = true; prevMouse = { x: e.clientX, y: e.clientY }; });
+window.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  const dx = (e.clientX - prevMouse.x) * 0.005;
+  const dy = (e.clientY - prevMouse.y) * 0.005;
+  spherical.theta -= dx;
+  spherical.phi = Math.max(0.2, Math.min(Math.PI / 2.2, spherical.phi + dy));
+  prevMouse = { x: e.clientX, y: e.clientY };
+  updateCamera();
+});
+window.addEventListener('mouseup', () => isDragging = false);
+canvas.addEventListener('wheel', e => {
+  spherical.r = Math.max(5, Math.min(20, spherical.r + e.deltaY * 0.01));
+  updateCamera();
+});
+
+// Touch support
+let prevTouch = null;
+canvas.addEventListener('touchstart', e => { prevTouch = e.touches[0]; });
+canvas.addEventListener('touchmove', e => {
+  if (!prevTouch) return;
+  const t = e.touches[0];
+  const dx = (t.clientX - prevTouch.clientX) * 0.006;
+  const dy = (t.clientY - prevTouch.clientY) * 0.006;
+  spherical.theta -= dx;
+  spherical.phi = Math.max(0.2, Math.min(Math.PI / 2.2, spherical.phi + dy));
+  prevTouch = t;
+  updateCamera();
+  e.preventDefault();
+}, { passive: false });
+canvas.addEventListener('touchend', () => { prevTouch = null; });
+
+// ── UI UPDATE ──
+function updateUI() {
+  const out = nand(inputA, inputB);
+
+  // Badges
+  const ba = document.getElementById('badge-a');
+  const bb = document.getElementById('badge-b');
+  ba.textContent = inputA ? 'HIGH' : 'LOW';
+  bb.textContent = inputB ? 'HIGH' : 'LOW';
+  ba.className = 'badge' + (inputA ? ' high' : '');
+  bb.className = 'badge' + (inputB ? ' high' : '');
+
+  // Toggle buttons
+  document.getElementById('btn-a').className = 'toggle-btn' + (inputA ? ' on' : '');
+  document.getElementById('btn-b').className = 'toggle-btn' + (inputB ? ' on' : '');
+
+  // LED display
+  const ledVis = document.getElementById('led-visual');
+  const ledState = document.getElementById('led-state');
+  const ledLogic = document.getElementById('led-logic');
+  if (out) {
+    ledVis.className = 'led-visual on';
+    ledState.className = 'led-state on';
+    ledState.textContent = 'ON';
+    ledLogic.textContent = 'HIGH · 5V';
+  } else {
+    ledVis.className = 'led-visual';
+    ledState.className = 'led-state';
+    ledState.textContent = 'OFF';
+    ledLogic.textContent = 'LOW · 0V';
+  }
+
+  // Truth table highlight
+  const rows = document.querySelectorAll('#truth-body tr');
+  const idx = (inputA ? 2 : 0) + (inputB ? 1 : 0);
+  rows.forEach((r, i) => {
+    r.className = i === idx ? 'active' : '';
+    if (i === idx) {
+      const lastTd = r.querySelector('td:last-child');
+      lastTd.className = out ? 'output-on' : '';
+    }
+  });
+
+  // 3D LED update
+  if (ledMesh) {
+    ledMesh.material = out ? ledMat : ledOffMat;
+  }
+  ledLight.intensity = out ? 3 : 0;
+  ledLight.color.set(out ? 0xff4400 : 0x000000);
+}
+
+function toggleA() { inputA = !inputA; updateUI(); }
+function toggleB() { inputB = !inputB; updateUI(); }
+
+// ── AUTO ROTATE ──
+let autoRotate = true;
+canvas.addEventListener('mousedown', () => { autoRotate = false; });
+
+// ── RENDER LOOP ──
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+
+  if (autoRotate) {
+    spherical.theta = Math.PI / 4 + Math.sin(t * 0.15) * 0.2;
+    updateCamera();
+  }
+
+  // Gentle LED flicker when on
+  const out = nand(inputA, inputB);
+  if (out && ledMesh) {
+    ledMesh.material.emissiveIntensity = 1.3 + Math.sin(t * 12) * 0.15;
+    ledLight.intensity = 2.8 + Math.sin(t * 11) * 0.3;
+  }
+
+  renderer.render(scene, camera);
+}
+
+updateCamera();
+updateUI();
+animate();
+
+// ── RESIZE ──
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>
