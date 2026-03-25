@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diode — NAND Gate (fork)</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#eaeff4;overflow:hidden;font-family:'Inter',system-ui,sans-serif;}
+#cv{display:block;position:fixed;top:0;left:0;}
+
+#topbar{position:fixed;top:0;left:0;right:0;height:52px;z-index:999;background:rgba(255,255,255,0.97);border-bottom:1px solid rgba(0,0,0,0.08);display:flex;align-items:center;padding:0 20px;backdrop-filter:blur(20px);}
+.logo{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;color:#111;}
+.logo-ring{width:28px;height:28px;border-radius:50%;border:2px solid #111;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.logo-ring::after{content:'';border-style:solid;border-width:5px 0 5px 9px;border-color:transparent transparent transparent #111;margin-left:2px;}
+#proj{position:absolute;left:50%;transform:translateX(-50%);font-size:14px;color:#666;pointer-events:none;white-space:nowrap;}
+#simBtn{margin-left:auto;display:flex;align-items:center;gap:7px;background:#00e6b3;color:#003;border:none;border-radius:8px;padding:8px 20px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .15s;flex-shrink:0;}
+#simBtn:hover{background:#00cfa0;}
+#simBtn.running{background:#ff4455;color:#fff;}
+#clock{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:999;background:rgba(16,20,28,0.85);color:#fff;font-size:12px;font-family:'SF Mono',ui-monospace,monospace;padding:5px 16px;border-radius:20px;white-space:nowrap;}
+
+#panel{position:fixed;top:72px;right:16px;width:224px;z-index:999;background:#fff;border:1px solid rgba(0,0,0,0.10);border-radius:14px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.14);}
+.ps{padding:13px 16px;}
+.plbl{font-size:10px;font-weight:600;color:#aaa;text-transform:uppercase;letter-spacing:1.8px;margin-bottom:9px;display:block;}
+.pdiv{height:1px;background:#eee;}
+.irow{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.ilbl{font-size:13px;color:#333;}
+.tog{position:relative;width:46px;height:24px;border-radius:12px;border:none;cursor:pointer;background:#ddd;transition:background .2s;outline:none;flex-shrink:0;}
+.tog::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.25);transition:left .22s cubic-bezier(.34,1.56,.64,1);}
+.tog.on{background:#00e6b3;}
+.tog.on::after{left:25px;}
+.bdg{font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;background:#f0f0f0;color:#999;min-width:40px;text-align:center;transition:all .18s;}
+.bdg.hi{background:#e0fff5;color:#00906a;}
+.ledrow{display:flex;align-items:center;gap:12px;}
+.leddot{width:26px;height:26px;border-radius:50%;background:#e0e0e0;border:2px solid #ccc;flex-shrink:0;transition:all .28s;position:relative;}
+.leddot.on{background:radial-gradient(circle at 33% 28%,#ffaa77,#ff2200);border-color:#ff4400;box-shadow:0 0 14px rgba(255,50,0,.8),0 0 28px rgba(255,50,0,.25);}
+.leddot::after{content:'';position:absolute;top:4px;left:5px;width:9px;height:5px;border-radius:50%;background:rgba(255,255,255,.35);opacity:0;transition:opacity .3s;}
+.leddot.on::after{opacity:1;}
+.lednm{font-size:11px;color:#aaa;margin-bottom:1px;}
+.ledvl{font-size:15px;font-weight:600;color:#ccc;transition:color .2s;}
+.ledvl.on{color:#ff4400;}
+#tt{width:100%;border-collapse:collapse;font-size:12px;}
+#tt th{color:#bbb;font-weight:500;padding:3px 0;text-align:center;border-bottom:1px solid #eee;}
+#tt td{padding:5px 0;text-align:center;color:#ccc;}
+#tt tr.act td{color:#222;font-weight:600;background:#f5f5f5;}
+#tt tr.act .hi{color:#00906a;}
+#tt tr.act .lo{color:#ff4400;}
+.pnote{font-size:11px;color:#bbb;line-height:1.7;}
+.pnote b{color:#888;}
+#star{position:fixed;right:0;top:50%;transform:translateY(-50%);width:38px;height:38px;background:#1e1e1e;border-radius:8px 0 0 8px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#f0c030;cursor:pointer;z-index:999;}
+#editbtn{position:fixed;bottom:18px;right:18px;display:flex;align-items:center;gap:5px;font-size:13px;color:#555;padding:7px 12px;border-radius:9px;background:rgba(255,255,255,.95);border:1px solid rgba(0,0,0,.1);cursor:pointer;z-index:999;font-family:inherit;}
+#hint{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);font-size:11px;color:rgba(0,0,0,.28);z-index:999;pointer-events:none;white-space:nowrap;}
+</style>
+</head>
+<body>
+
+<canvas id="cv"></canvas>
+
+<nav id="topbar">
+  <div class="logo"><div class="logo-ring"></div>Diode</div>
+  <div id="proj">NAND Gate (fork)</div>
+  <button id="simBtn" onclick="toggleSim()">
+    <svg id="sico" viewBox="0 0 14 14" width="13" height="13"><circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="5.5,4.5 5.5,9.5 10.5,7" fill="currentColor"/></svg>
+    <span id="slbl">Simulate</span>
+  </button>
+</nav>
+<div id="clock">Clock: 0.00s</div>
+
+<div id="panel">
+  <div class="ps">
+    <span class="plbl">Inputs</span>
+    <div class="irow"><span class="ilbl">Input A</span><span class="bdg" id="bA">LOW</span><button class="tog" id="tA" onclick="toggleA()"></button></div>
+    <div class="irow"><span class="ilbl">Input B</span><span class="bdg" id="bB">LOW</span><button class="tog" id="tB" onclick="toggleB()"></button></div>
+  </div>
+  <div class="pdiv"></div>
+  <div class="ps">
+    <span class="plbl">Output</span>
+    <div class="ledrow">
+      <div class="leddot on" id="ld"></div>
+      <div><div class="lednm">LED</div><div class="ledvl on" id="lv">ON</div></div>
+    </div>
+  </div>
+  <div class="pdiv"></div>
+  <div class="ps">
+    <span class="plbl">Truth table</span>
+    <table id="tt">
+      <thead><tr><th>A</th><th>B</th><th>OUT</th></tr></thead>
+      <tbody>
+        <tr id="r0" class="act"><td>0</td><td>0</td><td class="hi">1</td></tr>
+        <tr id="r1"><td>0</td><td>1</td><td class="hi">1</td></tr>
+        <tr id="r2"><td>1</td><td>0</td><td class="hi">1</td></tr>
+        <tr id="r3"><td>1</td><td>1</td><td class="lo">0</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="pdiv"></div>
+  <div class="ps pnote">NAND = NOT AND<br>LED turns OFF only when <b>both</b> inputs are HIGH.</div>
+</div>
+<div id="star">✳</div>
+<div id="editbtn"><svg width="12" height="12" viewBox="0 0 14 14"><path d="M9.5 1.5L12.5 4.5L5 12H2V9L9.5 1.5Z" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linejoin="round"/></svg> Edit</div>
+<div id="hint">Click A / B buttons on board · or use panel toggles</div>
+
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W, H;
+let inputA = false, inputB = false;
+let simOn = false, simSecs = 0, simTimer = null;
+let ledGlow = 1;
+const NAND = (a,b) => !(a&&b);
+
+// clickable button rects
+let hitA = null, hitB = null;
+
+function resize(){
+  cv.width = window.innerWidth;
+  cv.height = window.innerHeight;
+  W = cv.width; H = cv.height;
+}
+
+// ═══════════════════════════════════════════════════
+//  DRAW BREADBOARD
+//  Matches the uploaded photo:
+//  - Portrait orientation
+//  - Left + right rail strips with red/blue lines
+//  - Center gap
+//  - 5+5 columns (a-e, f-j) with labels
+//  - 30 rows with row numbers
+//  - CLEAR SQUARE holes with visible metal contacts
+// ═══════════════════════════════════════════════════
+function drawAll(){
+  // Background
+  ctx.fillStyle = '#eaeff4';
+  ctx.fillRect(0,0,W,H);
+
+  // Board sits centered left of panel
+  const panelW = 250;
+  const topH = 60;
+  const availW = W - panelW - 20;
+  const availH = H - topH - 10;
+
+  // Board aspect ~0.63:1 (width:height) — portrait like photo
+  let bH = Math.min(availH * 0.96, H - 80);
+  let bW = bH * 0.63;
+  if(bW > availW * 0.95){ bW = availW * 0.95; bH = bW / 0.63; }
+  const bX = (availW - bW) / 2 + 10;
+  const bY = topH + (availH - bH) / 2;
+
+  // ── BOARD SHADOW ──
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.3)';
+  ctx.shadowBlur = 20;
+  ctx.shadowOffsetY = 8;
+  ctx.fillStyle = '#e0ddd5';
+  rr(bX, bY, bW, bH, 10);
+  ctx.fill();
+  ctx.restore();
+
+  // ── BOARD BODY ──
+  ctx.fillStyle = '#f0ede6';
+  rr(bX, bY, bW, bH, 10);
+  ctx.fill();
+  ctx.strokeStyle = '#c8c5bc';
+  ctx.lineWidth = 2;
+  rr(bX, bY, bW, bH, 10);
+  ctx.stroke();
+
+  // ── LAYOUT ──
+  // Rail width is about 13% of board width
+  const RW = bW * 0.13;
+  const padY = bH * 0.038;
+  const gY = bY + padY;        // grid top
+  const gH = bH - padY * 2;    // grid height
+  const ROWS = 30;
+  const rowH = gH / ROWS;
+  const COLS = 5;
+
+  // grid X: starts after left rail, ends before right rail
+  const gX = bX + RW;
+  const gW = bW - RW * 2;
+  const gapW = gW * 0.085;     // center gap
+  const halfW = (gW - gapW) / 2;
+  const colW = halfW / COLS;
+
+  // STEP = spacing between holes (same for rows and cols)
+  const S = Math.min(colW, rowH);
+  // hole size: square, 55% of step
+  const HS = S * 0.55;
+
+  // Column centers: a-e (left half), f-j (right half)
+  const cxA=[], cxF=[];
+  for(let i=0;i<COLS;i++){
+    cxA.push(gX + i*colW + colW/2);
+    cxF.push(gX + halfW + gapW + i*colW + colW/2);
+  }
+  const allCX = [...cxA, ...cxF];
+
+  // Row centers
+  const rowCY=[];
+  for(let r=0;r<ROWS;r++) rowCY.push(gY + r*rowH + rowH/2);
+
+  // ── LEFT RAIL STRIP ──
+  ctx.fillStyle = '#e8e4dc';
+  ctx.fillRect(bX, gY-padY*0.3, RW, gH+padY*0.6);
+
+  // Red line (outer left)
+  const lrx = bX + RW*0.24;
+  ctx.fillStyle = '#cc1800';
+  ctx.fillRect(lrx-2, gY, 4, gH);
+
+  // Blue line (inner left)
+  const lbx = bX + RW*0.70;
+  ctx.fillStyle = '#1133bb';
+  ctx.fillRect(lbx-2, gY, 4, gH);
+
+  // Divider line left
+  ctx.strokeStyle = '#b8b5ac';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(bX+RW, bY+6); ctx.lineTo(bX+RW, bY+bH-6); ctx.stroke();
+
+  // ── RIGHT RAIL STRIP ──
+  const RRX = bX + bW - RW;
+  ctx.fillStyle = '#e8e4dc';
+  ctx.fillRect(RRX, gY-padY*0.3, RW, gH+padY*0.6);
+
+  // Blue line (inner right)
+  const rbx = RRX + RW*0.30;
+  ctx.fillStyle = '#1133bb';
+  ctx.fillRect(rbx-2, gY, 4, gH);
+
+  // Red line (outer right)
+  const rrx = RRX + RW*0.76;
+  ctx.fillStyle = '#cc1800';
+  ctx.fillRect(rrx-2, gY, 4, gH);
+
+  // Divider line right
+  ctx.strokeStyle = '#b8b5ac';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(RRX, bY+6); ctx.lineTo(RRX, bY+bH-6); ctx.stroke();
+
+  // ── +/− LABELS ──
+  const lsz = Math.max(8, RW*0.30);
+  ctx.font = `bold ${lsz}px Arial`;
+  ctx.textAlign = 'center';
+  // Top
+  ctx.fillStyle = '#cc1800'; ctx.fillText('+', lrx, gY-4); ctx.fillText('+', rrx, gY-4);
+  ctx.fillStyle = '#1133bb'; ctx.fillText('−', lbx, gY-4); ctx.fillText('−', rbx, gY-4);
+  // Bottom
+  ctx.fillStyle = '#cc1800'; ctx.fillText('+', lrx, gY+gH+lsz+2); ctx.fillText('+', rrx, gY+gH+lsz+2);
+  ctx.fillStyle = '#1133bb'; ctx.fillText('−', lbx, gY+gH+lsz+2); ctx.fillText('−', rbx, gY+gH+lsz+2);
+
+  // ── RAIL HOLES ──
+  for(let r=0;r<ROWS;r++){
+    const ry = rowCY[r];
+    drawHole(lrx, ry, HS*0.75, false);
+    drawHole(lbx, ry, HS*0.75, false);
+    drawHole(rbx, ry, HS*0.75, false);
+    drawHole(rrx, ry, HS*0.75, false);
+  }
+
+  // ── COLUMN LABELS ──
+  const clsz = Math.max(7, colW*0.38);
+  ctx.font = `bold ${clsz}px Arial`;
+  ctx.fillStyle = '#777';
+  ctx.textAlign='center';
+  ['a','b','c','d','e'].forEach((l,i)=>{
+    ctx.fillText(l, cxA[i], gY-5);
+    ctx.fillText(l, cxA[i], gY+gH+clsz+3);
+  });
+  ['f','g','h','i','j'].forEach((l,i)=>{
+    ctx.fillText(l, cxF[i], gY-5);
+    ctx.fillText(l, cxF[i], gY+gH+clsz+3);
+  });
+
+  // ── ROW NUMBERS ──
+  const nfsz = Math.max(6, rowH*0.42);
+  ctx.font = `${nfsz}px Arial`;
+  ctx.fillStyle = '#999';
+  for(let r=0;r<ROWS;r++){
+    const ry = rowCY[r] + nfsz*0.35;
+    ctx.textAlign='right'; ctx.fillText(r+1, gX-4, ry);
+    ctx.textAlign='left';  ctx.fillText(r+1, RRX+3, ry);
+  }
+
+  // ── CENTER GAP ──
+  const cgX = gX + halfW;
+  ctx.fillStyle = '#d0cdc4';
+  ctx.fillRect(cgX, bY+4, gapW, bH-8);
+  // lighter center
+  ctx.fillStyle = '#dad7ce';
+  ctx.fillRect(cgX+3, bY+4, gapW-6, bH-8);
+
+  // ── GROUP LINES every 5 rows ──
+  ctx.strokeStyle = 'rgba(0,0,0,0.09)';
+  ctx.lineWidth = 1;
+  for(let r=5;r<ROWS;r+=5){
+    const ry = gY + r*rowH;
+    // left half
+    ctx.beginPath(); ctx.moveTo(gX+2, ry); ctx.lineTo(cgX-2, ry); ctx.stroke();
+    // right half
+    ctx.beginPath(); ctx.moveTo(cgX+gapW+2, ry); ctx.lineTo(RRX-2, ry); ctx.stroke();
+  }
+
+  // ── MAIN HOLE GRID ──
+  // Draw each hole as a SQUARE with visible metal contact — like the photo
+  for(let r=0;r<ROWS;r++){
+    const ry = rowCY[r];
+    for(let c=0;c<10;c++){
+      drawHole(allCX[c], ry, HS, true);
+    }
+  }
+
+  // ══════════════════════════════
+  //  COMPONENTS
+  // ══════════════════════════════
+
+  // ── BATTERY HOLDER (rows 1-2, center top) ──
+  const bcx = (cxA[2]+cxF[2])/2;
+  const bcy = rowCY[1];
+  const bW2 = halfW*1.15, bH2 = rowH*2.4;
+  ctx.fillStyle='#111';
+  rr(bcx-bW2/2, bcy-bH2/2, bW2, bH2, 5);
+  ctx.fill();
+  ctx.fillStyle='#1e1e1e';
+  rr(bcx-bW2/2+3, bcy-bH2/2+3, bW2-6, bH2-6, 3);
+  ctx.fill();
+  ctx.fillStyle='#555';
+  ctx.font=`bold ${Math.max(7,bH2*0.17)}px Arial`;
+  ctx.textAlign='center';
+  ctx.fillText('5.0 Volts', bcx, bcy+3);
+
+  // Battery wire terminals
+  ctx.strokeStyle='#ff2200'; ctx.lineWidth=3; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(bcx-bW2/2+10, bcy-bH2/2); ctx.lineTo(bcx-bW2/2+10, bcy-bH2/2-rowH); ctx.stroke();
+  ctx.strokeStyle='#111'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(bcx-bW2/2+22, bcy-bH2/2); ctx.lineTo(bcx-bW2/2+22, bcy-bH2/2-rowH); ctx.stroke();
+
+  // ── IC CHIP (rows 5-7, right half) ──
+  const icp = {x: cxF[1]+colW/2, y: rowCY[5]};
+  const icW=colW*2.6, icH=rowH*2.2;
+  ctx.fillStyle='#0d0d0d';
+  rr(icp.x-icW/2, icp.y-icH/2, icW, icH, 3);
+  ctx.fill();
+  // notch
+  ctx.fillStyle='#222';
+  ctx.beginPath(); ctx.arc(icp.x-icW/2+icW*0.22, icp.y-icH/2, icH*0.07, 0, Math.PI*2); ctx.fill();
+  // legs
+  ctx.strokeStyle='#999'; ctx.lineWidth=1.5;
+  for(let i=0;i<4;i++){
+    const lx=icp.x-icW/2+(i+0.5)*(icW/4);
+    ctx.beginPath(); ctx.moveTo(lx, icp.y-icH/2); ctx.lineTo(lx, icp.y-icH/2-rowH*0.35); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(lx, icp.y+icH/2); ctx.lineTo(lx, icp.y+icH/2+rowH*0.35); ctx.stroke();
+  }
+  ctx.fillStyle='#444'; ctx.font=`bold ${Math.max(6,icH*0.22)}px Arial`; ctx.textAlign='center';
+  ctx.fillText('NAND', icp.x, icp.y+4);
+
+  // ── PUSH BUTTONS (row 4) ──
+  const br = colW*0.75;
+  const btnAp={x:cxA[2], y:rowCY[4]};
+  const btnBp={x:cxF[2], y:rowCY[4]};
+  hitA={x:btnAp.x-br,y:btnAp.y-br,w:br*2,h:br*2};
+  hitB={x:btnBp.x-br,y:btnBp.y-br,w:br*2,h:br*2};
+  drawBtn(btnAp.x, btnAp.y, br, inputA, 'A');
+  drawBtn(btnBp.x, btnBp.y, br, inputB, 'B');
+
+  // ── RESISTORS (rows 8-9, left area) ──
+  const rp1={x:cxA[1]+colW/2, y:rowCY[8]};
+  const rp2={x:cxA[1]+colW/2, y:rowCY[10]};
+  [rp1,rp2].forEach(rp=>drawResistor(rp.x, rp.y, colW*2.2, rowH*0.52));
+
+  // ── LED (row 12, col c) ──
+  const ledp={x:cxA[2], y:rowCY[12]};
+  const ledR=colW*0.82;
+  const out=NAND(inputA,inputB);
+  if(out) ledGlow=Math.min(1,ledGlow+0.06); else ledGlow=Math.max(0,ledGlow-0.08);
+  drawLED(ledp.x, ledp.y, ledR, out, ledGlow);
+
+  // ══ WIRES ══
+  // Red: battery to right red rail
+  drawWire([[bcx-bW2/2+10, bcy-bH2/2-rowH],[cxA[4]+5, gY-2],[rrx, rowCY[2]]],'#e82200',3.5);
+  // Black: battery to ground
+  drawWire([[bcx-bW2/2+22, bcy-bH2/2-rowH],[cxA[3], rowCY[3]],[cxA[3], rowCY[6]]],'#111',3);
+  // Red: long diagonal across board (big feature in the photo)
+  drawWire([[cxF[4], rowCY[3]],[cxF[4]+8,rowCY[8]],[cxA[4]-4,rowCY[16]],[lrx,rowCY[24]]],'#e82200',3.5);
+  // Black: short jumpers
+  drawWire([[cxF[3],rowCY[5]],[cxF[3],rowCY[7]]],'#111',3);
+  drawWire([[cxA[3],rowCY[6]],[cxA[3],rowCY[9]],[cxA[2]+8,rowCY[12]]],'#111',3);
+  // Red: short right jumper
+  drawWire([[cxF[3],rowCY[2]],[cxF[4],rowCY[3]]],'#e82200',3.5);
+  // Red bottom rail
+  drawWire([[lrx,rowCY[28]],[(lrx+rrx)/2,rowCY[29]+rowH*0.35],[rrx,rowCY[28]]],'#e82200',3.5);
+}
+
+// ── Draw one hole (square shape like real breadboard) ──
+function drawHole(x, y, hs, main){
+  const h=hs*0.92, h2=h/2;
+  // Outer raised rim (plastic square)
+  ctx.fillStyle='#d8d4cc';
+  ctx.fillRect(x-h2-2, y-h2-2, h+4, h+4);
+  // Plastic rim top highlight
+  ctx.fillStyle='#e2dfd6';
+  ctx.fillRect(x-h2-1, y-h2-1, h+2, h/2);
+  // Dark hole square
+  ctx.fillStyle='#1e1c18';
+  ctx.fillRect(x-h2, y-h2, h, h);
+  // Metal contact (gold copper square inside)
+  const m=h*0.42;
+  ctx.fillStyle = main ? '#9a8030' : '#7a7090';
+  ctx.fillRect(x-m/2, y-m/2, m, m);
+  // Inner black center
+  const ic=h*0.22;
+  ctx.fillStyle='#0a0a08';
+  ctx.fillRect(x-ic/2, y-ic/2, ic, ic);
+  // Specular dot
+  ctx.fillStyle='rgba(255,255,200,0.20)';
+  ctx.fillRect(x-h2+1, y-h2+1, h*0.28, h*0.18);
+}
+
+function drawBtn(x, y, r, active, lbl){
+  // Body
+  ctx.fillStyle='#0d0d0d';
+  rr(x-r,y-r,r*2,r*2,3); ctx.fill();
+  // Cap circle
+  ctx.beginPath(); ctx.arc(x,y,r*0.72,0,Math.PI*2);
+  ctx.fillStyle=active?'#444':'#1c1c1c'; ctx.fill();
+  ctx.strokeStyle=active?'#777':'#333'; ctx.lineWidth=1; ctx.stroke();
+  // Label
+  ctx.fillStyle=active?'#ccc':'#555';
+  ctx.font=`bold ${Math.max(7,r*0.6)}px Arial`; ctx.textAlign='center';
+  ctx.fillText(lbl, x, y+r*0.22);
+  // legs
+  ctx.strokeStyle='#bbb'; ctx.lineWidth=1.5;
+  [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([dx,dy])=>{
+    ctx.beginPath(); ctx.moveTo(x+dx*r*0.72,y+dy*r*0.72); ctx.lineTo(x+dx*r*0.72,y+dy*(r+r*0.5)); ctx.stroke();
+  });
+}
+
+function drawResistor(x, y, w, h){
+  const h2=h/2, hw=w/2;
+  // leads
+  ctx.strokeStyle='#ccc'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(x-hw-colW*0.3,y); ctx.lineTo(x-hw,y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x+hw,y); ctx.lineTo(x+hw+colW*0.3,y); ctx.stroke();
+  // body gradient
+  const g=ctx.createLinearGradient(x-hw,y-h2,x-hw,y+h2);
+  g.addColorStop(0,'#e8b860'); g.addColorStop(0.5,'#d4a040'); g.addColorStop(1,'#b88828');
+  ctx.fillStyle=g; rr(x-hw,y-h2,w,h,h2); ctx.fill();
+  // bands
+  const bw=w*0.08;
+  [[0x8800cc,-0.22],[0x111111,0],[0xff9900,0.22]].forEach(([c,off])=>{
+    ctx.fillStyle=`#${c.toString(16).padStart(6,'0')}`;
+    ctx.fillRect(x+off*w-bw/2, y-h2, bw, h);
+  });
+}
+
+function drawLED(x, y, r, on, glow){
+  // glow halo
+  if(glow>0){
+    const g=ctx.createRadialGradient(x,y,0,x,y,r*4);
+    g.addColorStop(0,`rgba(255,50,0,${0.5*glow})`);
+    g.addColorStop(0.5,`rgba(255,50,0,${0.15*glow})`);
+    g.addColorStop(1,'rgba(255,50,0,0)');
+    ctx.beginPath(); ctx.arc(x,y,r*4,0,Math.PI*2);
+    ctx.fillStyle=g; ctx.fill();
+  }
+  // base
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+  ctx.fillStyle='#111'; ctx.fill();
+  // dome gradient
+  const dg=ctx.createRadialGradient(x-r*0.32,y-r*0.32,0,x,y,r*0.95);
+  if(on){dg.addColorStop(0,'#ff9966');dg.addColorStop(0.35,'#ff3300');dg.addColorStop(1,'#991100');}
+  else{dg.addColorStop(0,'#882222');dg.addColorStop(1,'#330808');}
+  ctx.beginPath(); ctx.arc(x,y,r*0.93,0,Math.PI*2);
+  ctx.fillStyle=dg; ctx.fill();
+  // specular
+  const sg=ctx.createRadialGradient(x-r*0.36,y-r*0.36,0,x-r*0.2,y-r*0.2,r*0.6);
+  sg.addColorStop(0,`rgba(255,255,255,${on?0.65:0.18})`);
+  sg.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.beginPath(); ctx.arc(x,y,r*0.93,0,Math.PI*2);
+  ctx.fillStyle=sg; ctx.fill();
+  // legs
+  ctx.strokeStyle='#ccc'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(x-r*0.32,y+r); ctx.lineTo(x-r*0.32,y+r+colW*0.9); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x+r*0.32,y+r); ctx.lineTo(x+r*0.32,y+r+colW*0.9); ctx.stroke();
+}
+
+function drawWire(pts, color, lw){
+  ctx.save();
+  ctx.strokeStyle=color; ctx.lineWidth=lw; ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.shadowColor='rgba(0,0,0,0.3)'; ctx.shadowBlur=4; ctx.shadowOffsetY=2;
+  ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+  for(let i=1;i<pts.length-1;i++){
+    const mx=(pts[i][0]+pts[i+1][0])/2, my=(pts[i][1]+pts[i+1][1])/2;
+    ctx.quadraticCurveTo(pts[i][0],pts[i][1],mx,my);
+  }
+  ctx.lineTo(pts[pts.length-1][0],pts[pts.length-1][1]);
+  ctx.stroke(); ctx.restore();
+}
+
+let colW=20; // global updated during draw for component sizing
+
+function rr(x,y,w,h,r){
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r); ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h); ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r); ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+
+// Expose colW to component functions via recalc
+const _drawAll = drawAll;
+function drawAll(){
+  ctx.fillStyle='#eaeff4'; ctx.fillRect(0,0,W,H);
+  const panelW=250, topH=60, availW=W-panelW-20, availH=H-topH-10;
+  let bH=Math.min(availH*0.96,H-80), bW=bH*0.63;
+  if(bW>availW*0.95){bW=availW*0.95;bH=bW/0.63;}
+  // Update global colW for component sizing
+  const RW=bW*0.13, gW=bW-RW*2, gapW=gW*0.085, halfW=(gW-gapW)/2;
+  colW=halfW/5;
+  _drawAll_inner(bX=((availW-bW)/2+10), bY=(topH+(availH-bH)/2), bW, bH);
+}
+
+let bX,bY,bW_g,bH_g;
+function _drawAll_inner(bx,by,bw,bh){
+  bX=bx; bY=by; bW_g=bw; bH_g=bh;
+  ctx.fillStyle='#eaeff4'; ctx.fillRect(0,0,W,H);
+  const RW=bw*0.13, padY=bh*0.038;
+  const gY=by+padY, gH=bh-padY*2;
+  const ROWS=30, rowH=gH/ROWS;
+  const COLS=5, gX=bx+RW, gW=bw-RW*2;
+  const gapW=gW*0.085, halfW=(gW-gapW)/2;
+  const cW=halfW/COLS;
+  colW=cW;
+  const S=Math.min(cW,rowH), HS=S*0.56;
+
+  const cxA=[],cxF=[];
+  for(let i=0;i<COLS;i++){cxA.push(gX+i*cW+cW/2);cxF.push(gX+halfW+gapW+i*cW+cW/2);}
+  const allCX=[...cxA,...cxF];
+  const rowCY=[];
+  for(let r=0;r<ROWS;r++) rowCY.push(gY+r*rowH+rowH/2);
+
+  // ── BOARD ──
+  ctx.save();
+  ctx.shadowColor='rgba(0,0,0,0.28)'; ctx.shadowBlur=18; ctx.shadowOffsetY=7;
+  ctx.fillStyle='#dedad2'; rr(bx,by,bw,bh,10); ctx.fill();
+  ctx.restore();
+  ctx.fillStyle='#f0ede6'; rr(bx,by,bw,bh,10); ctx.fill();
+  ctx.strokeStyle='#c5c2b9'; ctx.lineWidth=2; rr(bx,by,bw,bh,10); ctx.stroke();
+
+  // ── LEFT RAIL ──
+  ctx.fillStyle='#e5e1d9'; ctx.fillRect(bx,gY-2,RW,gH+4);
+  const lrx=bx+RW*0.24, lbx=bx+RW*0.70;
+  ctx.fillStyle='#cc1800'; ctx.fillRect(lrx-2,gY,4,gH);
+  ctx.fillStyle='#1133bb'; ctx.fillRect(lbx-2,gY,4,gH);
+  ctx.strokeStyle='#b5b2a9'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(bx+RW,by+8); ctx.lineTo(bx+RW,by+bh-8); ctx.stroke();
+
+  // ── RIGHT RAIL ──
+  const RRX=bx+bw-RW;
+  ctx.fillStyle='#e5e1d9'; ctx.fillRect(RRX,gY-2,RW,gH+4);
+  const rbx=RRX+RW*0.30, rrx=RRX+RW*0.76;
+  ctx.fillStyle='#1133bb'; ctx.fillRect(rbx-2,gY,4,gH);
+  ctx.fillStyle='#cc1800'; ctx.fillRect(rrx-2,gY,4,gH);
+  ctx.strokeStyle='#b5b2a9'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(RRX,by+8); ctx.lineTo(RRX,by+bh-8); ctx.stroke();
+
+  // ── LABELS ──
+  const lsz=Math.max(8,RW*0.30);
+  ctx.font=`bold ${lsz}px Arial`; ctx.textAlign='center';
+  ctx.fillStyle='#cc1800';
+  ctx.fillText('+',lrx,gY-5); ctx.fillText('+',rrx,gY-5);
+  ctx.fillText('+',lrx,gY+gH+lsz+3); ctx.fillText('+',rrx,gY+gH+lsz+3);
+  ctx.fillStyle='#1133bb';
+  ctx.fillText('−',lbx,gY-5); ctx.fillText('−',rbx,gY-5);
+  ctx.fillText('−',lbx,gY+gH+lsz+3); ctx.fillText('−',rbx,gY+gH+lsz+3);
+
+  // Rail holes
+  for(let r=0;r<ROWS;r++){
+    const ry=rowCY[r];
+    drawHole(lrx,ry,HS*0.75,false);
+    drawHole(lbx,ry,HS*0.75,false);
+    drawHole(rbx,ry,HS*0.75,false);
+    drawHole(rrx,ry,HS*0.75,false);
+  }
+
+  // ── COLUMN LABELS ──
+  const clsz=Math.max(7,cW*0.40);
+  ctx.font=`bold ${clsz}px Arial`; ctx.fillStyle='#777'; ctx.textAlign='center';
+  ['a','b','c','d','e'].forEach((l,i)=>{ctx.fillText(l,cxA[i],gY-6); ctx.fillText(l,cxA[i],gY+gH+clsz+4);});
+  ['f','g','h','i','j'].forEach((l,i)=>{ctx.fillText(l,cxF[i],gY-6); ctx.fillText(l,cxF[i],gY+gH+clsz+4);});
+
+  // ── ROW NUMBERS ──
+  const nfsz=Math.max(6,rowH*0.40);
+  ctx.font=`${nfsz}px Arial`; ctx.fillStyle='#999';
+  for(let r=0;r<ROWS;r++){
+    const ry=rowCY[r]+nfsz*0.35;
+    ctx.textAlign='right'; ctx.fillText(r+1,gX-4,ry);
+    ctx.textAlign='left'; ctx.fillText(r+1,RRX+3,ry);
+  }
+
+  // ── CENTER GAP ──
+  const cgX=gX+halfW;
+  ctx.fillStyle='#ccc9c0'; ctx.fillRect(cgX,by+4,gapW,bh-8);
+  ctx.fillStyle='#d5d2c9'; ctx.fillRect(cgX+3,by+4,gapW-6,bh-8);
+
+  // ── GROUP SEPARATORS ──
+  ctx.strokeStyle='rgba(0,0,0,0.08)'; ctx.lineWidth=1;
+  for(let r=5;r<ROWS;r+=5){
+    const ry=gY+r*rowH;
+    ctx.beginPath(); ctx.moveTo(gX+2,ry); ctx.lineTo(cgX-2,ry); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cgX+gapW+2,ry); ctx.lineTo(RRX-2,ry); ctx.stroke();
+  }
+
+  // ── HOLES ──
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<10;c++) drawHole(allCX[c],rowCY[r],HS,true);
+  }
+
+  // ── COMPONENTS ──
+  const out=NAND(inputA,inputB);
+  if(out) ledGlow=Math.min(1,ledGlow+0.06); else ledGlow=Math.max(0,ledGlow-0.08);
+
+  // Battery
+  const bcx=(cxA[2]+cxF[2])/2, bcy=rowCY[1];
+  const btW=halfW*1.12, btH=rowH*2.3;
+  ctx.fillStyle='#111'; rr(bcx-btW/2,bcy-btH/2,btW,btH,5); ctx.fill();
+  ctx.fillStyle='#1e1e1e'; rr(bcx-btW/2+3,bcy-btH/2+3,btW-6,btH-6,3); ctx.fill();
+  ctx.fillStyle='#555'; ctx.font=`bold ${Math.max(7,btH*0.18)}px Arial`; ctx.textAlign='center';
+  ctx.fillText('5.0 Volts',bcx,bcy+3);
+  ctx.strokeStyle='#ff2200'; ctx.lineWidth=3; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(bcx-btW/2+10,bcy-btH/2); ctx.lineTo(bcx-btW/2+10,bcy-btH/2-rowH); ctx.stroke();
+  ctx.strokeStyle='#111'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(bcx-btW/2+22,bcy-btH/2); ctx.lineTo(bcx-btW/2+22,bcy-btH/2-rowH); ctx.stroke();
+
+  // IC
+  const icp={x:cxF[1]+cW/2,y:rowCY[5]};
+  const icW=cW*2.6,icH=rowH*2.2;
+  ctx.fillStyle='#0d0d0d'; rr(icp.x-icW/2,icp.y-icH/2,icW,icH,3); ctx.fill();
+  ctx.fillStyle='#222'; ctx.beginPath(); ctx.arc(icp.x-icW/2+icW*0.22,icp.y-icH/2,icH*0.07,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#999'; ctx.lineWidth=1.5;
+  for(let i=0;i<4;i++){
+    const lx=icp.x-icW/2+(i+0.5)*(icW/4);
+    ctx.beginPath(); ctx.moveTo(lx,icp.y-icH/2); ctx.lineTo(lx,icp.y-icH/2-rowH*0.35); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(lx,icp.y+icH/2); ctx.lineTo(lx,icp.y+icH/2+rowH*0.35); ctx.stroke();
+  }
+  ctx.fillStyle='#444'; ctx.font=`bold ${Math.max(6,icH*0.22)}px Arial`; ctx.textAlign='center';
+  ctx.fillText('NAND',icp.x,icp.y+4);
+
+  // Buttons
+  const br=cW*0.78;
+  hitA={x:cxA[2]-br,y:rowCY[4]-br,w:br*2,h:br*2};
+  hitB={x:cxF[2]-br,y:rowCY[4]-br,w:br*2,h:br*2};
+  drawBtn(cxA[2],rowCY[4],br,inputA,'A');
+  drawBtn(cxF[2],rowCY[4],br,inputB,'B');
+
+  // Resistors
+  [rowCY[8],rowCY[10]].forEach(ry=>drawResistor(cxA[1]+cW/2,ry,cW*2.2,rowH*0.52));
+
+  // LED
+  drawLED(cxA[2],rowCY[12],cW*0.84,out,ledGlow);
+
+  // Wires
+  drawWire([[bcx-btW/2+10,bcy-btH/2-rowH],[cxA[4]+5,gY-2],[rrx,rowCY[2]]],'#e82200',3.5);
+  drawWire([[bcx-btW/2+22,bcy-btH/2-rowH],[cxA[3],rowCY[3]],[cxA[3],rowCY[6]]],'#111',3);
+  drawWire([[cxF[4],rowCY[3]],[cxF[4]+8,rowCY[9]],[cxA[4]-4,rowCY[17]],[lrx,rowCY[24]]],'#e82200',3.5);
+  drawWire([[cxF[3],rowCY[5]],[cxF[3],rowCY[7]]],'#111',3);
+  drawWire([[cxA[3],rowCY[6]],[cxA[3],rowCY[9]],[cxA[2]+8,rowCY[12]]],'#111',3);
+  drawWire([[cxF[3],rowCY[2]],[cxF[4],rowCY[3]]],'#e82200',3.5);
+  drawWire([[lrx,rowCY[28]],[(lrx+rrx)/2,rowCY[29]+rowH*0.35],[rrx,rowCY[28]]],'#e82200',3.5);
+}
+
+function loop(){
+  requestAnimationFrame(loop);
+  _drawAll_inner(
+    (window.innerWidth-250-20-window.innerWidth*0.63)/2+10,
+    60+(window.innerHeight-60-10-window.innerHeight*0.92)/2,
+    window.innerWidth*0.63 > (window.innerWidth-250-20)*0.95 ? (window.innerWidth-250-20)*0.95 : window.innerWidth*0.63,
+    Math.min((window.innerHeight-70)*0.96, window.innerHeight-80)
+  );
+}
+
+function init(){
+  resize();
+  // Proper size calc matching css
+  function getSize(){
+    const availW=W-250-20, availH=H-60-10;
+    let bh=Math.min(availH*0.96,H-80), bw=bh*0.63;
+    if(bw>availW*0.95){bw=availW*0.95;bh=bw/0.63;}
+    return{bx:(availW-bw)/2+10, by:60+(availH-bh)/2, bw, bh};
+  }
+
+  function draw(){
+    const{bx,by,bw,bh}=getSize();
+    _drawAll_inner(bx,by,bw,bh);
+  }
+
+  function animate(){requestAnimationFrame(animate); draw();}
+  animate();
+}
+
+cv.addEventListener('click',e=>{
+  const r=cv.getBoundingClientRect();
+  const cx=e.clientX-r.left, cy=e.clientY-r.top;
+  if(hitA&&cx>=hitA.x&&cx<=hitA.x+hitA.w&&cy>=hitA.y&&cy<=hitA.y+hitA.h){inputA=!inputA;updateUI();}
+  if(hitB&&cx>=hitB.x&&cx<=hitB.x+hitB.w&&cy>=hitB.y&&cy<=hitB.y+hitB.h){inputB=!inputB;updateUI();}
+});
+
+function toggleA(){inputA=!inputA;updateUI();}
+function toggleB(){inputB=!inputB;updateUI();}
+function updateUI(){
+  const out=NAND(inputA,inputB);
+  ['bA','bB'].forEach((id,i)=>{
+    const v=i===0?inputA:inputB;
+    const el=document.getElementById(id);
+    el.textContent=v?'HIGH':'LOW'; el.className='bdg'+(v?' hi':'');
+  });
+  document.getElementById('tA').className='tog'+(inputA?' on':'');
+  document.getElementById('tB').className='tog'+(inputB?' on':'');
+  document.getElementById('ld').className='leddot'+(out?' on':'');
+  const lv=document.getElementById('lv'); lv.textContent=out?'ON':'OFF'; lv.className='ledvl'+(out?' on':'');
+  const ri=(inputA?2:0)+(inputB?1:0);
+  ['r0','r1','r2','r3'].forEach((id,i)=>document.getElementById(id).className=i===ri?'act':'');
+}
+function toggleSim(){
+  simOn=!simOn;
+  const btn=document.getElementById('simBtn'),ico=document.getElementById('sico'),lbl=document.getElementById('slbl');
+  if(simOn){
+    btn.classList.add('running');lbl.textContent='Stop';
+    ico.innerHTML='<circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="4.5" y="4.5" width="5" height="5" fill="currentColor"/>';
+    simTimer=setInterval(()=>{simSecs+=0.1;document.getElementById('clock').textContent='Clock: '+simSecs.toFixed(2)+'s';},100);
+  }else{
+    btn.classList.remove('running');lbl.textContent='Simulate';
+    ico.innerHTML='<circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="5.5,4.5 5.5,9.5 10.5,7" fill="currentColor"/>';
+    clearInterval(simTimer);simSecs=0;
+    document.getElementById('clock').textContent='Clock: 0.00s';
+    inputA=false;inputB=false;updateUI();
+  }
+}
+window.addEventListener('resize',()=>{resize();});
+init();
+</script>
+</body>
+</html>
